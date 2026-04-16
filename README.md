@@ -20,11 +20,13 @@ Ship error tracking for your FE + BE stack in a day instead of a month. Every ha
 ## Who this is for
 
 You want Sentry-like error tracking but:
-- Don't want to pay per-seat / per-event pricing ($26+/mo/seat adds up)
-- Need data residency (errors, stack traces, user context never leave your infra)
-- Have a small-to-mid team and don't need a full Sentry deployment
+- Need **data residency** — stack traces, headers, user context never leave your infra
+- Expect significant error volume growth (self-hosted scales cheaper per event)
+- Want to avoid depending on third-party uptime for your observability tool
 
-BugSink is Sentry SDK protocol compatible, so every official Sentry SDK (`sentry-sdk`, `@sentry/react`, `@sentry/nextjs`, `Sentry.AspNetCore`, etc.) just works against it.
+**If you're a small team with low error volume and no data-residency rules,** Sentry Cloud Team at $26/mo flat may actually be cheaper than running BugSink yourself. See `docs/01-why-bugsink.md` for an honest cost comparison — we don't hide the fact that Sentry Cloud is often the better pick at small scale.
+
+BugSink is Sentry SDK protocol compatible, so every official Sentry SDK (`sentry-sdk`, `@sentry/react`, `@sentry/nextjs`, `Sentry.AspNetCore`, etc.) works against it. That also means **switching between BugSink and Sentry later is just a DSN change** — no lock-in either way.
 
 ## Quick start (10 minutes, Docker Compose)
 

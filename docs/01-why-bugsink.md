@@ -12,12 +12,45 @@ The industry answer is **Sentry** or a compatible alternative. The question is: 
 
 ## The tradeoffs
 
-| Option | Cost | Ops burden | Data residency | When it's right |
-|--------|------|------------|----------------|-----------------|
-| **Sentry Cloud** | $26+/seat/mo + event overage | None | Sentry's infra | Small team, no data residency needs, OK with per-event pricing |
-| **Sentry Self-Hosted** | Free | Heavy (Postgres + Redis + Kafka + ClickHouse + Zookeeper + Relay + several Celery workers) | Your infra | Large team that will use advanced features (performance monitoring, session replay, profiling) |
-| **GlitchTip** | Free | Medium (Postgres + Redis + Celery + Django) | Your infra | Mid-size team, want Sentry-compatible + a little lighter |
-| **BugSink** | Free | Light (Postgres + Django, single pod) | Your infra | Small-to-mid team, errors-only, want minimal ops |
+| Option | Direct cost | Ops burden | Data residency | When it's right |
+|--------|-------------|------------|----------------|-----------------|
+| **Sentry Cloud — Team** | **$26/mo** flat (50K errors, unlimited seats) | None | Sentry's infra (US/EU) | Small team, low-to-mid error volume, OK with SaaS |
+| **Sentry Cloud — Business** | $80+/mo | None | Sentry's | Performance, replays, advanced workflows |
+| **Sentry Self-Hosted** | Infra cost only, but stack is heavy (Postgres + Redis + Kafka + ClickHouse + Zookeeper + Relay + multiple Celery workers) | High | Your infra | Large team, already paying for ClickHouse+Kafka for other reasons |
+| **GlitchTip** | Infra (~$20-40/mo) | Medium (Postgres + Redis + Celery + Django) | Your infra | Mid-size team, want Sentry-compatible + OAuth SSO |
+| **BugSink** | **~$15-45/mo** infra (Postgres + single Django pod) | Light | Your infra | Small-to-mid team, errors-only, data residency matters |
+
+## Honest cost comparison: BugSink vs Sentry Cloud
+
+**Sentry Cloud Team at $26/mo is a real benchmark.** For a small team, if your only requirement is "errors in Slack," Sentry Cloud is often the cheapest, lowest-ops option — a $26 flat fee beats $15-45/mo of cloud infra plus your time setting up and maintaining it.
+
+Break-even math for a small team:
+
+| Scenario | Monthly | Pick |
+|----------|---------|------|
+| 1-3 devs, < 20K errors/mo, no data residency rules | Sentry Cloud Team $26 | **Sentry Cloud** |
+| Small team but data residency required (SOC2, HIPAA, regulated industry) | BugSink ~$15-25 | **BugSink** |
+| Small team, hobby/side project, want self-hosted for learning | BugSink ~$15 | **BugSink** |
+| Mid team, 20-100K errors/mo, prod workload | BugSink ~$30 + ops time vs Sentry Team $26 + overages | **Do the math for your volume** |
+| Large team, >100K errors/mo | Sentry Cloud overages get painful ($0.00022 per event over quota) | **BugSink or Sentry Self-Hosted** |
+| Regulated + high volume | BugSink ~$45 | **BugSink (split architecture)** |
+
+**BugSink wins when:**
+- Data residency is a firm requirement (regulators, enterprise customers, paranoid CEO)
+- You expect significant growth in error volume (self-hosted scales cheaper per event)
+- You don't trust third-party uptime for your observability tool
+- You want exit flexibility — BugSink uses the Sentry protocol, so migrating later is just a DSN change
+
+**Sentry Cloud wins when:**
+- You're a small team and $26/mo is below the "time to set up infra" threshold
+- You want advanced features (performance monitoring, replays, profiling, issue alerting workflows)
+- You don't want to be on-call for the monitoring tool itself
+
+**If you pick BugSink and later regret it:** great news, that's a DSN change. Your app code doesn't know or care which Sentry-protocol server is on the other end. You haven't locked in.
+
+**If you pick Sentry Cloud and later regret it:** same thing in reverse. Switching direction is just as easy.
+
+This is a cheap decision to defer — start with whichever gets you to "errors in Slack in 30 minutes" and revisit in 6 months.
 
 ## Why BugSink (for most teams)
 
