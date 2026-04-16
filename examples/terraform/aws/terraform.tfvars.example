@@ -1,0 +1,25 @@
+region = "us-east-1"
+name   = "bugsink"
+
+vpc_id             = "vpc-xxxxxxxx"
+private_subnet_ids = ["subnet-aaa", "subnet-bbb", "subnet-ccc"]
+eks_node_sg_id     = "sg-xxxxxxxx"
+
+db_instance_class    = "db.t3.micro"  # db.t3.small for prod
+db_allocated_storage = 20
+
+office_ips = [
+  "203.0.113.0/24",
+  "198.51.100.5/32",
+]
+
+cluster_nat_eip = "203.0.113.99"  # NAT GW EIP
+
+slack_webhook_url = "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+dashboard_host    = "bugsink.example.com"
+
+eks_cluster_name  = "my-eks-cluster"
+eks_oidc_provider = "oidc.eks.us-east-1.amazonaws.com/id/XXXXX"
+
+k8s_namespace       = "bugsink"
+k8s_service_account = "bugsink"

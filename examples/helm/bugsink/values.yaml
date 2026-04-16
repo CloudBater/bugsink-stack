@@ -1,0 +1,130 @@
+# Default values for the bugsink Helm chart.
+# See values.gcp.yaml and values.aws.yaml for cloud-specific overrides.
+
+# -- Deployment namespace
+namespace: bugsink
+
+image:
+  repository: bugsink/bugsink
+  tag: "2.1.2"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: bugsink
+  annotations: {}
+  # GCP Workload Identity:
+  #   iam.gke.io/gcp-service-account: bugsink-sa@your-project.iam.gserviceaccount.com
+  # AWS IRSA:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/bugsink-pod-role
+
+podSecurityContext:
+  fsGroup: 14237
+
+containerSecurityContext: {}
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClassName: ""  # uses default if empty
+
+# --- BugSink application config ---
+bugsink:
+  baseUrl: https://bugsink.example.com
+  allowedHosts: "*"  # see docs/13-gotchas.md
+  proxyCount: 2  # GCP LB = 2, AWS ALB = 1
+  gunicornWorkers: 4
+
+# --- Database config ---
+database:
+  # Option A: GCP Cloud SQL via Auth Proxy sidecar
+  gcp:
+    enabled: false
+    instanceConnectionName: ""  # project:region:instance
+    dbName: bugsink
+    user: bugsink
+    proxy:
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.13.0
+      resources:
+        requests: {cpu: 50m, memory: 64Mi}
+        limits: {cpu: 200m, memory: 128Mi}
+
+  # Option B: AWS RDS direct connection
+  aws:
+    enabled: false
+    endpoint: ""  # bugsink-pg.xxx.us-east-1.rds.amazonaws.com
+    dbName: bugsink
+    user: bugsink
+    port: 5432
+
+  # Option C: Local Postgres in same cluster (docker-compose-style)
+  local:
+    enabled: false
+    host: postgres
+    port: 5432
+    dbName: bugsink
+    user: bugsink
+
+# --- Secrets ---
+# Option 1: External Secrets Operator syncing from Secret Manager (recommended)
+externalSecret:
+  enabled: true
+  provider: gcp  # "gcp" or "aws"
+  gcp:
+    projectID: ""  # your-project
+    clusterLocation: ""
+    clusterName: ""
+    secretKeyRemote: bugsink-secret-key
+    dbPasswordRemote: bugsink-db-password
+  aws:
+    region: us-east-1
+    secretKeyRemote: bugsink/secret-key
+    dbPasswordRemote: bugsink/db-password
+
+# Option 2: Static values (NOT recommended for prod — commit-risk)
+# secrets:
+#   secretKey: ""
+#   dbPassword: ""
+
+# --- Ingress ---
+ingress:
+  enabled: true
+  # Cloud: "gcp" or "aws"
+  cloud: gcp
+  host: bugsink.example.com
+
+  # GCP-specific
+  gcp:
+    globalStaticIpName: bugsink-ip
+    managedCert: true
+    cloudArmorPolicy: bugsink-internal-only
+    backendConfig:
+      healthCheck:
+        checkIntervalSec: 30
+        requestPath: /accounts/login/
+
+  # AWS-specific
+  aws:
+    certificateArn: ""  # arn:aws:acm:...
+    wafAclArn: ""       # arn:aws:wafv2:...
+    scheme: internet-facing  # or "internal"
+    healthcheckPath: /accounts/login/
+
+# --- Source-map upload Job (post-install/upgrade hook) ---
+# Usually configured in your FE app's Helm chart, not here.
+# See examples/helm/bugsink/templates/sourcemap-upload-job.yaml for reference.
+
+# --- Monitoring ---
+# Uptime check + alert policy must be set up separately — see:
+#   examples/terraform/gcp/uptime.tf
+#   examples/terraform/aws/uptime.tf

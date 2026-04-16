@@ -1,0 +1,62 @@
+# Google Cloud Build — FE app with BugSink source map inject.
+#
+# The UPLOAD step runs via Helm post-install Job, not here.
+# This pipeline only injects debug IDs into the built artifacts and ships the image.
+#
+# Required substitutions:
+#   $_IMAGE_REPO     — Artifact Registry path, e.g. us-central1-docker.pkg.dev/project/repo
+#   $SHORT_SHA       — auto-populated by Cloud Build
+
+steps:
+  # 1. Install deps and build
+  - name: node:20
+    id: build
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -eu
+        npm ci
+        npm run build
+
+  # 2. Install sentry-cli (cached in a subsequent image layer)
+  - name: gcr.io/cloud-builders/curl
+    id: install-sentry-cli
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        curl -sL https://sentry.io/get-cli/ | sh
+        mv /usr/local/bin/sentry-cli ./sentry-cli-bin
+
+  # 3. Inject debug IDs into built artifacts
+  - name: node:20
+    id: inject-debug-ids
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        ./sentry-cli-bin sourcemaps inject ./dist
+
+  # 4. Build and push Docker image
+  - name: gcr.io/cloud-builders/docker
+    id: docker-build
+    args:
+      - build
+      - -t
+      - $_IMAGE_REPO/my-app:$SHORT_SHA
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: docker-push
+    args:
+      - push
+      - $_IMAGE_REPO/my-app:$SHORT_SHA
+
+# Source map upload is done by a Helm post-install/post-upgrade Job after deploy,
+# not here. See examples/helm/bugsink/templates/sourcemap-upload-job.yaml
+# and docs/08-source-maps.md.
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_STANDARD_4

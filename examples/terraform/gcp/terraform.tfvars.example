@@ -1,0 +1,17 @@
+project_id      = "your-gcp-project"
+region          = "asia-east1"
+name            = "bugsink"
+db_tier         = "db-f1-micro"  # db-g1-small for prod
+
+office_ips = [
+  "203.0.113.0/24",   # office 1
+  "198.51.100.5/32",  # office 2
+]
+
+cluster_nat_ip = "203.0.113.99"  # see: gcloud compute routers get-nats
+
+slack_webhook_url = "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+dashboard_host    = "bugsink.example.com"
+
+k8s_namespace       = "bugsink"
+k8s_service_account = "bugsink"

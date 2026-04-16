@@ -1,0 +1,75 @@
+---
+# Optional: restrict BugSink pod egress.
+# Requires a CNI that enforces NetworkPolicy (Calico, Cilium, AWS VPC CNI w/ ENABLE_POD_ENI, etc.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bugsink-egress
+  namespace: bugsink
+spec:
+  podSelector:
+    matchLabels:
+      app: bugsink
+  policyTypes:
+  - Egress
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Postgres (in-cluster for local Postgres; remove if using managed Cloud SQL / RDS via sidecar only)
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  # HTTPS egress (Slack webhooks, Secrets Manager API, Cloud SQL metadata, etc.)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+    ports:
+    - protocol: TCP
+      port: 443
+  # Cloud SQL proxy metadata server (GCP only)
+  - to:
+    - ipBlock:
+        cidr: 169.254.0.0/16
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+---
+# Ingress policy: only allow traffic from your app namespaces + the Ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bugsink-ingress
+  namespace: bugsink
+spec:
+  podSelector:
+    matchLabels:
+      app: bugsink
+  policyTypes:
+  - Ingress
+  ingress:
+  # From same cluster's app namespaces (SDK ingest)
+  - from:
+    - namespaceSelector: {}  # all namespaces in this cluster
+    ports:
+    - protocol: TCP
+      port: 8000
+  # From the GKE Ingress controller / AWS ALB (health checks)
+  # Adjust CIDR per cluster if needed.

@@ -1,0 +1,52 @@
+---
+# Runs sentry-cli sourcemaps upload against BugSink's in-cluster SVC.
+# Typically triggered by Helm's post-install/post-upgrade hook rather than
+# applied manually. See examples/helm/bugsink/templates/sourcemap-upload-job.yaml
+# for the Helm-annotated version.
+#
+# Requires a secret containing SENTRY_AUTH_TOKEN (create from your BugSink API token).
+#
+# kubectl create secret generic bugsink-auth-token -n <your-app-namespace> \
+#   --from-literal=SENTRY_AUTH_TOKEN="<your-api-token>"
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bugsink-sourcemap-upload
+  namespace: <your-app-namespace>  # <CHANGE_ME> — same namespace as your FE app
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: upload
+        # Use the same image as your FE app so the built source maps are available
+        image: <YOUR_FE_IMAGE>:<TAG>  # <CHANGE_ME>
+        env:
+        - name: SENTRY_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: bugsink-auth-token
+              key: SENTRY_AUTH_TOKEN
+        - name: SENTRY_URL
+          # In-cluster SVC — bypasses the public Ingress for the first step of
+          # chunk upload. Note: sentry-cli then follows a redirect to BASE_URL
+          # (public), so cluster NAT egress IP must be allowlisted in WAF/Cloud Armor.
+          # See docs/08-source-maps.md.
+          value: "http://bugsink.bugsink.svc.cluster.local"
+        - name: SENTRY_RELEASE
+          value: "<ENVIRONMENT>-<IMAGE_TAG>"  # <CHANGE_ME>
+        - name: SOURCEMAP_DIR
+          value: "/app/dist"  # <CHANGE_ME> — where your built artifacts live in the image
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          sentry-cli --url "$SENTRY_URL" \
+            --auth-token "$SENTRY_AUTH_TOKEN" \
+            sourcemaps upload \
+            --release "$SENTRY_RELEASE" \
+            "$SOURCEMAP_DIR"

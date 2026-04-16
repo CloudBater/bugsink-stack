@@ -1,0 +1,33 @@
+# AWS EKS override values.
+# Usage: helm install bugsink . -f values.yaml -f values.aws.yaml
+
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/bugsink-pod-role  # <CHANGE_ME>
+
+bugsink:
+  proxyCount: 1  # AWS ALB adds X-Forwarded-For with 1 hop
+  allowedHosts: "bugsink.example.com,localhost"  # AWS ALB can pass real Host header; restrict
+
+database:
+  aws:
+    enabled: true
+    endpoint: "bugsink-pg.XXX.us-east-1.rds.amazonaws.com"  # <CHANGE_ME>
+
+externalSecret:
+  enabled: true
+  provider: aws
+  aws:
+    region: us-east-1  # <CHANGE_ME>
+
+ingress:
+  enabled: true
+  cloud: aws
+  host: bugsink.example.com  # <CHANGE_ME>
+  aws:
+    certificateArn: "arn:aws:acm:us-east-1:ACCOUNT:certificate/XXXX"  # <CHANGE_ME>
+    wafAclArn: "arn:aws:wafv2:us-east-1:ACCOUNT:regional/webacl/bugsink-internal-only/XXXX"  # <CHANGE_ME>
+    scheme: internet-facing
+
+persistence:
+  storageClassName: gp3

@@ -1,0 +1,39 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: alb
+spec:
+  controller: ingress.k8s.aws/alb
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugsink
+  namespace: bugsink
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:<REGION>:<ACCOUNT>:certificate/<CERT_ID>  # <CHANGE_ME>
+    alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:<REGION>:<ACCOUNT>:regional/webacl/bugsink-internal-only/<ACL_ID>  # <CHANGE_ME>
+    alb.ingress.kubernetes.io/healthcheck-path: /accounts/login/
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "10"
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/target-group-attributes: "deregistration_delay.timeout_seconds=30"
+spec:
+  ingressClassName: alb
+  rules:
+  - host: bugsink.example.com  # <CHANGE_ME>
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bugsink
+            port:
+              number: 80

@@ -1,0 +1,61 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: gce
+spec:
+  controller: k8s.io/ingress-gce
+---
+# BackendConfig — Cloud Armor + healthcheck tuning
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: bugsink-backend-config
+  namespace: bugsink
+spec:
+  securityPolicy:
+    name: bugsink-internal-only  # Cloud Armor policy — create separately
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 10
+    healthyThreshold: 1
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /accounts/login/
+    port: 8000
+---
+# ManagedCertificate
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: bugsink-cert
+  namespace: bugsink
+spec:
+  domains:
+  - bugsink.example.com  # <CHANGE_ME>
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugsink
+  namespace: bugsink
+  annotations:
+    kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.allow-http: "true"
+    # Use a global static IP for stable DNS — reserve separately:
+    #   gcloud compute addresses create bugsink-ip --global
+    kubernetes.io/ingress.global-static-ip-name: bugsink-ip  # <CHANGE_ME>
+    networking.gke.io/managed-certificates: bugsink-cert
+spec:
+  rules:
+  - host: bugsink.example.com  # <CHANGE_ME>
+    http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: bugsink
+            port:
+              number: 80

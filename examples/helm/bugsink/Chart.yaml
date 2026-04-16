@@ -1,0 +1,17 @@
+apiVersion: v2
+name: bugsink
+description: Self-hosted error tracking (Sentry-compatible) via BugSink
+type: application
+version: 0.1.0
+appVersion: "2.1.2"
+home: https://github.com/CloudBater/bugsink-stack
+sources:
+  - https://github.com/CloudBater/bugsink-stack
+  - https://github.com/bugsink/bugsink
+keywords:
+  - error-tracking
+  - sentry
+  - observability
+  - bugsink
+maintainers:
+  - name: CloudBater

@@ -1,0 +1,69 @@
+# GitHub Actions — FE build with BugSink source-map injection.
+# Place at .github/workflows/build.yml in your FE repo.
+
+name: Build and deploy
+
+on:
+  push:
+    branches: [main, develop]
+
+env:
+  IMAGE_REPO: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install sentry-cli
+        run: |
+          curl -sL https://sentry.io/get-cli/ | sh
+
+      - name: Inject debug IDs
+        run: |
+          sentry-cli sourcemaps inject ./dist
+
+      # Optional: upload source maps DIRECTLY from CI (requires WAF allowlist of GitHub runner IPs)
+      # Alternative (recommended): let the Helm post-install Job do it after deploy.
+      # - name: Upload source maps to BugSink
+      #   env:
+      #     SENTRY_URL: https://bugsink.example.com
+      #     SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      #     SENTRY_RELEASE: ${{ github.ref_name }}-${{ github.sha }}
+      #   run: |
+      #     sentry-cli --url "$SENTRY_URL" \
+      #       --auth-token "$SENTRY_AUTH_TOKEN" \
+      #       sourcemaps upload \
+      #       --release "$SENTRY_RELEASE" \
+      #       ./dist
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_REPO }}:${{ github.sha }}
+
+      # Deployment step (kubectl set image / helm upgrade / argocd sync) omitted — varies per team.

@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bugsink
+      POSTGRES_USER: bugsink
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bugsink"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bugsink:
+    image: bugsink/bugsink:${BUGSINK_VERSION:-2.1.2}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: "postgres://bugsink:${DB_PASSWORD}@postgres:5432/bugsink"
+      BASE_URL: ${BASE_URL:-http://localhost:8000}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      PORT: "8000"
+      GUNICORN_WORKERS: "4"
+      X_FORWARDED_FOR_PROXY_COUNT: "1"
+      CREATE_SUPERUSER_EMAIL: ${CREATE_SUPERUSER_EMAIL:-}
+      CREATE_SUPERUSER_PASSWORD: ${CREATE_SUPERUSER_PASSWORD:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - bugsink-data:/data
+
+volumes:
+  pg-data:
+  bugsink-data:

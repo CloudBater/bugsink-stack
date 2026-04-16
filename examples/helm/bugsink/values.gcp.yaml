@@ -1,0 +1,34 @@
+# GCP GKE override values.
+# Usage: helm install bugsink . -f values.yaml -f values.gcp.yaml
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: bugsink-sa@YOUR_PROJECT.iam.gserviceaccount.com  # <CHANGE_ME>
+
+bugsink:
+  proxyCount: 2  # GCP LB prepends its IP
+
+database:
+  gcp:
+    enabled: true
+    instanceConnectionName: "YOUR_PROJECT:REGION:bugsink-pg"  # <CHANGE_ME>
+
+externalSecret:
+  enabled: true
+  provider: gcp
+  gcp:
+    projectID: YOUR_PROJECT  # <CHANGE_ME>
+    clusterLocation: asia-east1  # <CHANGE_ME>
+    clusterName: YOUR_CLUSTER  # <CHANGE_ME>
+
+ingress:
+  enabled: true
+  cloud: gcp
+  host: bugsink.example.com  # <CHANGE_ME>
+  gcp:
+    globalStaticIpName: bugsink-ip
+    managedCert: true
+    cloudArmorPolicy: bugsink-internal-only
+
+persistence:
+  storageClassName: standard-rwo
